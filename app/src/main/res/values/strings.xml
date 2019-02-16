@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Juego</string>
+    <string name="vivos">Bichos</string>
+    <string name="puntos">Mis puntos</string>
 </resources>
