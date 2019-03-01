@@ -2,4 +2,11 @@
     <string name="app_name">Juego</string>
     <string name="vivos">Bichos</string>
     <string name="puntos">Mis puntos</string>
+    <string name="maxPuntos">Max. puntos</string>
+    <string name="esperer">Espere</string>
+    <string name="segundos">segundos</string>
+    <string name="segundo">segundo</string>
+    <string name="restart">Volver a iniciar en</string>
+    <string name="_0">0</string>
+    <string name="todo">TODO</string>
 </resources>

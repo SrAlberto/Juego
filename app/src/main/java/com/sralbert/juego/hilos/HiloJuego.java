@@ -1,59 +1,63 @@
 package com.sralbert.juego.hilos;
 
+import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
-import com.sralbert.juego.Enemigo;
-import com.sralbert.juego.EnemigoA;
-import com.sralbert.juego.EnemigoB;
-import com.sralbert.juego.EnemigoC;
-import com.sralbert.juego.EnemigoD;
 import com.sralbert.juego.MainActivity;
 import com.sralbert.juego.R;
+import com.sralbert.juego.clases.Enemigo;
+import com.sralbert.juego.clases.EnemigoA;
+import com.sralbert.juego.clases.EnemigoB;
+import com.sralbert.juego.clases.EnemigoC;
+import com.sralbert.juego.clases.EnemigoD;
 
 import java.util.Random;
 
 public class HiloJuego extends AsyncTask<Void, Void, Void> implements View.OnClickListener {
 
+    @SuppressLint("StaticFieldLeak")
     private MainActivity activity;
-    private MediaPlayer melodia;
-    private static final int MAX_VIDAS = 5;
-    private static final int MAX_COMBO = 10;
-    private int alto, ancho, puntos, vidas, combo;
+    private static final int MAX_VIDAS= 4;
+    private static final int VELOCIDAD_SPAWN_BICHOS= 1000;
+    private int alto, ancho, puntos, vidas, duracion= 4000, velocidadSpawn= VELOCIDAD_SPAWN_BICHOS;
+    private ObjectAnimator animation;
+    private SharedPreferences sp;
 
 
-    public HiloJuego (MainActivity activity) {
+    HiloJuego(MainActivity activity) {
         this.activity = activity;
-        this.alto = activity.getPanelJuego().getHeight();
+        this.alto = activity.getPanelJuego().getHeight()-120;
         this.ancho = activity.getPanelJuego().getWidth();
-        melodia = MediaPlayer.create(activity, R.raw.background);
-
-
+        sp= activity.getSharedPreferences("datos", Context.MODE_PRIVATE);
      }
 
     private void iniciarPartida () {
-        vidas= 3;
+        vidas= 2;
         puntos= 0;
         activity.getTxtPuntos().setText("0");
-        for (int i = 0; i < vidas; i++) {
+        for (int i = 0; i <= vidas; i++) {
             activity.getIvHeart()[i].setVisibility(View.VISIBLE);
         }
-        for (int i = MAX_VIDAS-1; i >= 3; i--) {
+        for (int i = MAX_VIDAS; i > vidas; i--) {
             activity.getIvHeart()[i].setVisibility(View.INVISIBLE);
         }
         activity.getPanelJuego().removeAllViews();
-        melodia.setLooping(true);
-        melodia.start();
+        activity.getMelodia().start();
+        activity.getMelodia().setLooping(true);
     }
 
     private void hayVidas() {
         ImageView iv = new ImageView(activity);
-        Object ob= new EnemigoA();
+        Enemigo ob= new EnemigoA();
         Random r= new Random();
-        int bicho= r.nextInt(13);
+        int bicho= r.nextInt(13), posAncho= new Random().nextInt(ancho-200);
 
         switch (bicho){
             case 1:
@@ -72,44 +76,68 @@ public class HiloJuego extends AsyncTask<Void, Void, Void> implements View.OnCli
                 break;
         }
 
+        iv.setImageResource(ob.getImagenes()[0]);
+        animation = ObjectAnimator.ofFloat(iv, "translationY", 0, alto+120);
+        animation.setDuration(duracion);
         iv.setTag(String.valueOf(ob.getClass()));
-        iv.setImageResource(((Enemigo) ob).getImagenes()[0]);
         iv.setAdjustViewBounds(true);
-        iv.setMaxWidth(100);
-        iv.setX((new Random().nextInt(ancho-80)+1)+80);
+        iv.setMaxWidth(200);
+        iv.setX(posAncho);
         iv.setOnClickListener(this);
+        animation.start();
         activity.getPanelJuego().addView(iv);
+    }
+
+    private void getLimite(){
+        RelativeLayout panel= activity.getPanelJuego();
+        int hijos= panel.getChildCount();
+
+        for (int i = 0; i < hijos; i++) {
+            if(panel.getChildAt(i) instanceof ImageView){
+                ImageView iv= (ImageView) panel.getChildAt(i);
+                Enemigo e= getEnemyType((String) iv.getTag());
+                if(iv.getTranslationY()>=alto){
+                    panel.removeView(iv);
+                    if(e instanceof EnemigoA || e instanceof EnemigoB && (vidas-1)>=-1) setNewVida(-1);
+                }
+            }
+        }
     }
 
     @Override
     protected void onProgressUpdate(Void... values) {
         super.onProgressUpdate(values);
         hayVidas();
+        getLimite();
     }
 
     @Override
     protected void onPreExecute() {
         super.onPreExecute();
+        activity.setHiloJuego(this);
         iniciarPartida();
     }
 
     @Override
     protected Void doInBackground(Void... voids) {
-        while (vidas>0) {
+        while (vidas>-1) {
             try {
                 publishProgress();
-                Thread.sleep(600);
-            } catch (InterruptedException e) {}
+                Thread.sleep(velocidadSpawn);
+                animation.setDuration(duracion);
+            } catch (InterruptedException ignored) {}
+            if((VELOCIDAD_SPAWN_BICHOS-puntos)>0 && puntos%2==0) velocidadSpawn= VELOCIDAD_SPAWN_BICHOS-puntos;
         }
         return null;
     }
 
+    @SuppressLint("CommitPrefEdits")
     @Override
     protected void onPostExecute(Void aVoid) {
         super.onPostExecute(aVoid);
-        melodia.stop();
+        activity.getMelodia().stop();
 
-        for (int i=0; i<activity.getPanelJuego().getChildCount();i++) {
+        for (int i=0; i<activity.getPanelJuego().getChildCount(); i++) {
             activity.getPanelJuego().getChildAt(i).setOnClickListener(null);
         }
 
@@ -122,34 +150,54 @@ public class HiloJuego extends AsyncTask<Void, Void, Void> implements View.OnCli
         RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams)ivGO.getLayoutParams();
         layoutParams.addRule(RelativeLayout.CENTER_IN_PARENT, RelativeLayout.TRUE);
         ivGO.setLayoutParams(layoutParams);
+
+        int max= sp.getInt("max", 0);
+
+        if(puntos>max)
+            sp.edit().putInt("max", puntos).apply();
+
+        activity.getMaxTxt().setVisibility(View.VISIBLE);
+        activity.getMaxPuntos().setVisibility(View.VISIBLE);
+        activity.getMaxPuntos().setText(String.valueOf(max));
+
+
+        HiloFinal hf= new HiloFinal(activity);
+        hf.execute(ivGO);
     }
 
     @Override
     public void onClick(View v) {
-        String enemigoA= EnemigoA.class.toString(),
-               enemigoB= EnemigoB.class.toString(),
-               enemigoC= EnemigoC.class.toString(),
-               enemigoD= EnemigoD.class.toString(),
-               id= (String) v.getTag();
-        Object enemigo= new EnemigoA();
+        String id[] = ((String) v.getTag()).split(";");
+        Enemigo enemigo = new EnemigoA();
 
+            ImageView e = (ImageView) v;
+            if (getEnemyType(id[0]) instanceof EnemigoB) {
+                enemigo = new EnemigoB();
+                if (id.length == 1) {
+                    v.setTag(id[0] + ";"+enemigo.getNumToques());
+                    e.setImageResource(enemigo.getImagenes()[1]);
+                    return;
+                }
+            } else if (getEnemyType(id[0]) instanceof EnemigoC) {
+                enemigo = new EnemigoC();
+            } else if (getEnemyType(id[0]) instanceof EnemigoD) {
+                enemigo = new EnemigoD();
+            }
 
-        if (id.equals(enemigoB)){
-            enemigo= new EnemigoB();
-        }else if (id.equals(enemigoC)){
-            enemigo= new EnemigoC();
-        }else if (id.equals(enemigoD)){
-            enemigo= new EnemigoD();
-        }
-
-        setNewPuntos(((Enemigo) enemigo).getPuntos());
-        setNewVida(((Enemigo) enemigo).getVida());
+        setNewPuntos(enemigo.getPuntos());
+        setNewVida(enemigo.getVida());
+        setNewDuracionCaida(enemigo.getVelocidad());
         v.setOnClickListener(null);
-        MediaPlayer moneda = MediaPlayer.create(activity, R.raw.moneda);
-        moneda.start();
 
+        if(activity.getSonido()!=null){
+            activity.getSonido().release();
+            activity.setSonido(null);
+        }
+        activity.setSonido(MediaPlayer.create(activity, enemigo.getSonido()));
+        activity.getSonido().start();
+        animation.setDuration(duracion);
         HiloAnimacion ha = new HiloAnimacion(activity.getPanelJuego());
-        ha.executeOnExecutor(THREAD_POOL_EXECUTOR, (ImageView) v);
+        ha.executeOnExecutor(THREAD_POOL_EXECUTOR, v, enemigo);
     }
 
     private void setNewPuntos(int puntos){
@@ -158,13 +206,35 @@ public class HiloJuego extends AsyncTask<Void, Void, Void> implements View.OnCli
     }
 
     private void setNewVida(int vidas){
-        if(vidas!=0 && this.vidas>0 && this.vidas<5) {
-            this.vidas+= vidas;
+        if(vidas!=0) {
             if (vidas > 0) {
-                activity.getIvHeart()[this.vidas - 1].setVisibility(View.VISIBLE);
+                if(this.vidas<MAX_VIDAS)this.vidas+= vidas;
+                activity.getIvHeart()[this.vidas].setVisibility(View.VISIBLE);
             } else {
                 activity.getIvHeart()[this.vidas].setVisibility(View.INVISIBLE);
+                this.vidas+= vidas;
             }
         }
+    }
+
+    private void setNewDuracionCaida(int velocidad){
+        int duracionCaida= duracion- (puntos*velocidad);
+        animation.setDuration(duracionCaida);
+    }
+
+    private Enemigo getEnemyType(String tag){
+        String enemigoB= EnemigoB.class.toString(),
+                enemigoC= EnemigoC.class.toString(),
+                enemigoD= EnemigoD.class.toString();
+        Enemigo e= new EnemigoA();
+
+        if (tag.equals(enemigoB)){
+            e= new EnemigoB();
+        }else if (tag.equals(enemigoC)){
+            e= new EnemigoC();
+        }else if (tag.equals(enemigoD)){
+            e= new EnemigoD();
+        }
+        return e;
     }
 }

@@ -1,53 +1,51 @@
 package com.sralbert.juego.hilos;
 
+import android.annotation.SuppressLint;
 import android.os.AsyncTask;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
-import com.sralbert.juego.R;
+import com.sralbert.juego.clases.Enemigo;
+import com.sralbert.juego.clases.EnemigoB;
 
-public class HiloAnimacion extends AsyncTask<ImageView,Integer,Void> {
+public class HiloAnimacion extends AsyncTask<Object,Integer,Void> {
 
+    @SuppressLint("StaticFieldLeak")
     private ImageView iv;
+    private int ivs[];
+    @SuppressLint("StaticFieldLeak")
     private RelativeLayout panelJuego;
 
 
-    public HiloAnimacion(RelativeLayout panelJuego) {
+    HiloAnimacion(RelativeLayout panelJuego) {
         this.panelJuego = panelJuego;
     }
 
     @Override
-    protected Void doInBackground(ImageView... ivs) {
-        iv = ivs[0];
+    protected Void doInBackground(Object... objs) {
+        iv = (ImageView) objs[0];
+        Enemigo enemigo = (Enemigo) objs[1];
+        ivs= enemigo.getImagenes();
+
+
         try {
-            for (int i = 0; i < 4; i++) {
+            int i= 0;
+            if(enemigo.getClass()==EnemigoB.class) i = 1;
+            for (; i < ivs.length+1; i++) {
                 publishProgress(i);
                 Thread.sleep(50);
             }
+        }catch (Exception e) {
+            e.printStackTrace();
         }
-        catch (Exception e) {}
         return null;
     }
 
     @Override
     protected void onProgressUpdate(Integer... values) {
         super.onProgressUpdate(values);
-        switch (values[0]) {
-            case 0: {
-                iv.setImageResource(R.drawable.bicho1);
-                break;
-            }
-            case 1: {
-                iv.setImageResource(R.drawable.bicho2);
-                break;
-            }
-            case 2: {
-                iv.setImageResource(R.drawable.bicho3);
-                break;
-            }
-            case 3:
-                panelJuego.removeView(iv);
 
-        }
+        if(values[0]==ivs.length) panelJuego.removeView(iv);
+        else iv.setImageResource(ivs[values[0]]);
     }
 }

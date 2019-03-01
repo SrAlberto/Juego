@@ -1,5 +1,6 @@
 package com.sralbert.juego.hilos;
 
+import android.annotation.SuppressLint;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 
@@ -8,8 +9,8 @@ import com.sralbert.juego.R;
 
 public class HiloCuentaAtras extends AsyncTask<Void,Integer,Void> {
 
+    @SuppressLint("StaticFieldLeak")
     private MainActivity activity;
-    private MediaPlayer mp;
 
     public HiloCuentaAtras(MainActivity activity) {
         this.activity = activity;
@@ -17,8 +18,8 @@ public class HiloCuentaAtras extends AsyncTask<Void,Integer,Void> {
 
     @Override
     protected Void doInBackground(Void... voids) {
-//        mp= MediaPlayer.create(activity, R.raw.countdown);
-//        mp.start();
+        MediaPlayer mp = MediaPlayer.create(activity, R.raw.countdown);
+        mp.start();
         try {
             publishProgress(3);
             Thread.sleep(500);
@@ -27,9 +28,9 @@ public class HiloCuentaAtras extends AsyncTask<Void,Integer,Void> {
             publishProgress(1);
             Thread.sleep(500);
         } catch (InterruptedException e) {
-
+            e.printStackTrace();
         }
-//        mp.stop();
+        mp.stop();
         return null;
     }
 
